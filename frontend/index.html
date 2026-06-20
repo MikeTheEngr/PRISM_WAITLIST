@@ -658,15 +658,45 @@ signals.forEach(s => {
   list.appendChild(row);
 });
 
-// ===== Waitlist form handling (demo only, no backend yet) =====
+// ===== Waitlist form handling — connected to live backend =====
+const PRISM_API = 'https://prism-waitlist.onrender.com';
+
 function handleWaitlist(formId, emailId, successId) {
   const form = document.getElementById(formId);
-  form.addEventListener('submit', (e) => {
+  const button = form.querySelector('button[type="submit"]');
+  const originalText = button.textContent;
+
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById(emailId).value;
-    if (email) {
+    const email = document.getElementById(emailId).value.trim();
+    if (!email) return;
+
+    button.disabled = true;
+    button.textContent = 'Joining...';
+
+    try {
+      const res = await fetch(`${PRISM_API}/waitlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, source: 'landing_page' })
+      });
+
+      if (!res.ok) throw new Error('Request failed');
+
+      const data = await res.json();
+
       form.style.display = 'none';
-      if (successId) document.getElementById(successId).style.display = 'block';
+      if (successId) {
+        const successEl = document.getElementById(successId);
+        successEl.textContent = '✓ ' + (data.message || "You're on the list. We'll be in touch soon.");
+        successEl.style.display = 'block';
+      } else {
+        button.textContent = "✓ You're on the list";
+      }
+    } catch (err) {
+      button.disabled = false;
+      button.textContent = originalText;
+      alert("Something went wrong joining the waitlist. Please try again in a moment — the server may be waking up (first request can take ~30s).");
     }
   });
 }
